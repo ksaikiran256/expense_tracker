@@ -3,7 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
-const fs = reuire('fs');
+const fs = require('fs');
 const path = require('path');
 
 const app = express();
