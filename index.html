@@ -184,7 +184,7 @@
     <script>
         const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '')
             ? 'http://localhost:3000'
-            : 'https://YOUR-ACTUAL-VERCEL-URL.vercel.app';// Replace with your actual deployed backend URL
+            : '';// Replace with your actual deployed backend URL
         let currentUser = localStorage.getItem('userEmail') || null;
         let currentUserObj = JSON.parse(localStorage.getItem('currentUserObj')) || null;
         let currentView = 'login';

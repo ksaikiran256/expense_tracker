@@ -3,11 +3,12 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
+app.use(express.static(__dirname));
 // Configure Multer for in-memory storage (Direct binary buffer insertion into MongoDB)
 const upload = multer({ storage: multer.memoryStorage() });
 
