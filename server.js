@@ -3,12 +3,22 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
+const fs = reuire('fs');
 const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
+app.get('/', (req, res) => {
+    try {
+        const htmlPath = path.join(__dirname, 'index.html');
+        const html = fs.readFileSync(htmlPath, 'utf8');
+        res.send(html);
+    } catch (err) {
+        res.status(404).send("Frontend document not found");
+    }
+});
 // Configure Multer for in-memory storage (Direct binary buffer insertion into MongoDB)
 const upload = multer({ storage: multer.memoryStorage() });
 
