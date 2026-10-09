@@ -53,8 +53,9 @@
             <h3 class="font-extrabold text-stone-900 dark:text-white mb-3 text-sm flex items-center gap-2">
                 <span>📄</span> Verified DB-Stored Document
             </h3>
-            <img id="modalImg" src=""
-                class="w-full h-auto rounded-2xl border border-stone-200 dark:border-purple-950 max-h-[420px] object-contain bg-stone-50 dark:bg-stone-950">
+            <div id="modalImagesContainer" class="flex flex-col gap-3 max-h-[420px] overflow-y-auto">
+                <!-- Dynamic Image Previews -->
+            </div>
         </div>
     </div>
 
@@ -132,10 +133,10 @@
                         class="w-full mt-1 p-2.5 border border-stone-200 dark:border-purple-950/80 rounded-xl text-xs bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-500">
                 </div>
                 <div>
-                    <label class="text-[11px] font-bold uppercase tracking-wider text-stone-400">Update DB Receipt /
-                        Take Photo</label>
+                    <label class="text-[11px] font-bold uppercase tracking-wider text-stone-400">Add More Photos /
+                        Receipts</label>
                     <div class="flex gap-2 mt-1">
-                        <input id="editReceiptFile" type="file" accept="image/*"
+                        <input id="editReceiptFile" type="file" accept="image/*" multiple
                             class="w-full p-1.5 border border-stone-200 dark:border-purple-950/80 rounded-xl text-[10px] bg-stone-50 dark:bg-stone-950 text-stone-400 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-extrabold file:bg-rose-50 file:text-rose-700 dark:file:bg-rose-500/10 dark:file:text-rose-400">
                         <button type="button" onclick="openCamera('edit')"
                             class="bg-purple-950 text-white px-3 py-1.5 rounded-xl text-xs font-extrabold hover:bg-purple-900 transition whitespace-nowrap shadow-md">📷
@@ -143,7 +144,7 @@
                     </div>
                     <p id="editSnapshotStatus"
                         class="text-[10px] text-rose-500 dark:text-rose-400 font-bold mt-1.5 hidden flex items-center gap-1">
-                        <span>✅</span> New snapshot ready for DB update!
+                        <span>✅</span> <span id="editSnapshotCount">0</span> snapshot(s) queued for DB update!
                     </p>
                 </div>
             </div>
@@ -158,17 +159,17 @@
         </div>
     </div>
 
-    <!-- Live Webcam Modal -->
+    <!-- Live Webcam Modal (4:3 Aspect Ratio Back Camera Constraint) -->
     <div id="cameraModal"
         class="hidden fixed inset-0 bg-stone-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
         <div
             class="bg-white dark:bg-[#150f20] p-6 rounded-3xl max-w-md w-full relative text-center shadow-2xl border border-stone-200 dark:border-purple-950/60">
             <h3
                 class="font-extrabold text-stone-900 dark:text-white mb-3 text-base flex items-center justify-center gap-2">
-                <span>📸</span> Live Document Camera
+                <span>📸</span> Back Camera (4:3 Ratio)
             </h3>
             <div
-                class="relative bg-stone-950 rounded-2xl overflow-hidden aspect-video flex items-center justify-center mb-4 border border-purple-950">
+                class="relative bg-stone-950 rounded-2xl overflow-hidden aspect-[3/4] w-full max-w-[320px] mx-auto flex items-center justify-center mb-4 border border-purple-950">
                 <video id="webcamVideo" autoplay playsinline class="w-full h-full object-cover"></video>
             </div>
             <div class="flex justify-center space-x-3">
@@ -176,7 +177,8 @@
                     class="bg-rose-600 hover:bg-rose-500 text-white px-5 py-2.5 rounded-xl font-extrabold text-xs shadow-lg shadow-rose-600/30 transition">Capture
                     Snapshot</button>
                 <button type="button" onclick="closeCamera()"
-                    class="bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 px-5 py-2.5 rounded-xl font-extrabold text-xs hover:bg-stone-200 dark:hover:bg-stone-700 transition">Cancel</button>
+                    class="bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 px-5 py-2.5 rounded-xl font-extrabold text-xs hover:bg-stone-200 dark:hover:bg-stone-700 transition">Done
+                    / Close</button>
             </div>
         </div>
     </div>
@@ -189,10 +191,12 @@
         let currentUser = localStorage.getItem('userEmail') || null;
         let currentUserObj = JSON.parse(localStorage.getItem('currentUserObj')) || null;
         let currentView = 'login';
-        let mobileTab = 'overview'; // 'overview', 'add', 'ledger' for mobile screens
+        let mobileTab = 'overview';
         let allExpenses = [];
-        let capturedImageBlob = null;
-        let editCapturedImageBlob = null;
+
+        // Multi-photo queue arrays
+        let capturedImageBlobs = [];
+        let editCapturedImageBlobs = [];
         let activeCameraContext = 'add';
         let mediaStream = null;
         let isRadarActive = false;
@@ -336,10 +340,9 @@
                     </header>
 
                     <!-- ========================================================= -->
-                    <!-- MOBILE LAYOUT (< 640px): Tabbed Interface to Prevent Clutter -->
+                    <!-- MOBILE LAYOUT (< 640px): Tabbed Interface -->
                     <!-- ========================================================= -->
                     <div class="block sm:hidden flex-1 p-4 pb-20 space-y-4">
-                        <!-- Mobile Tab Header / Welcome -->
                         <div class="flex justify-between items-center bg-white dark:bg-[#150f20] p-4 rounded-2xl border border-stone-200 dark:border-purple-950 shadow-sm">
                             <div>
                                 <p class="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Active Workspace</p>
@@ -350,7 +353,6 @@
 
                         <!-- TAB 1: OVERVIEW -->
                         <div id="mobileTabOverview" class="space-y-4 ${mobileTab === 'overview' ? '' : 'hidden'}">
-                            <!-- Budget Card -->
                             <div class="bg-white dark:bg-[#150f20] p-4 rounded-3xl border border-stone-200 dark:border-purple-950 shadow-lg space-y-2.5">
                                 <div class="flex justify-between items-center">
                                     <h3 class="text-xs font-extrabold text-stone-400 uppercase tracking-wider">🎯 Monthly Target</h3>
@@ -366,7 +368,6 @@
                                 <p id="budgetStatusMsgMob" class="text-[11px] font-bold text-stone-500"></p>
                             </div>
 
-                            <!-- Metrics Grid -->
                             <div class="grid grid-cols-3 gap-2">
                                 <div class="bg-white dark:bg-[#150f20] p-3 rounded-2xl border border-stone-200 dark:border-purple-950 shadow-md text-center">
                                     <p class="text-[9px] font-extrabold text-stone-400 uppercase">Spend</p>
@@ -382,17 +383,14 @@
                                 </div>
                             </div>
 
-                            <!-- Trends & Analytics Card -->
                             <div class="bg-white dark:bg-[#150f20] p-4 rounded-3xl border border-stone-200 dark:border-purple-950 shadow-lg space-y-3">
                                 <h3 class="text-xs font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400">📊 Velocity & Aggregation</h3>
-                                <div id="trendComparisonBoxMob" class="bg-stone-50 dark:bg-stone-950 p-3 rounded-xl border border-stone-200 dark:border-purple-950 text-xs">
-                                    Loading trends...
-                                </div>
+                                <div id="trendComparisonBoxMob" class="bg-stone-50 dark:bg-stone-950 p-3 rounded-xl border border-stone-200 dark:border-purple-950 text-xs">Loading trends...</div>
                                 <div id="aggregationBreakdownMob" class="grid grid-cols-2 gap-2 text-xs"></div>
                             </div>
                         </div>
 
-                        <!-- TAB 2: ADD TRANSACTION -->
+                        <!-- TAB 2: ADD TRANSACTION (Multi-photo enabled) -->
                         <div id="mobileTabAdd" class="space-y-4 ${mobileTab === 'add' ? '' : 'hidden'}">
                             <form onsubmit="addExpense(event); setMobileTab('ledger');" class="bg-white dark:bg-[#150f20] p-5 rounded-3xl border border-stone-200 dark:border-purple-950 shadow-xl space-y-3.5">
                                 <h3 class="text-xs font-extrabold text-stone-900 dark:text-white uppercase tracking-wider flex items-center gap-2"><span>📝</span> New Transaction Entry</h3>
@@ -424,12 +422,12 @@
                                     </div>
                                 </div>
                                 <div>
-                                    <label class="text-[11px] font-extrabold uppercase tracking-wider text-stone-400">Receipt / Camera Snap</label>
+                                    <label class="text-[11px] font-extrabold uppercase tracking-wider text-stone-400">Add Photos / Back Camera Snapshots</label>
                                     <div class="flex gap-2 mt-1">
-                                        <input id="receiptFile" type="file" accept="image/*" class="w-full p-2 border border-stone-200 dark:border-stone-900 rounded-xl text-[10px] bg-stone-50 dark:bg-stone-950 text-stone-400">
-                                        <button type="button" onclick="openCamera('add')" class="bg-purple-950 text-white px-3 py-2 rounded-xl text-xs font-extrabold shadow-md">📷 Cam</button>
+                                        <input id="receiptFile" type="file" accept="image/*" multiple class="w-full p-2 border border-stone-200 dark:border-stone-900 rounded-xl text-[10px] bg-stone-50 dark:bg-stone-950 text-stone-400">
+                                        <button type="button" onclick="openCamera('add')" class="bg-purple-950 text-white px-3 py-2 rounded-xl text-xs font-extrabold shadow-md whitespace-nowrap">📷 Back Cam</button>
                                     </div>
-                                    <p id="snapshotStatus" class="text-[10px] text-rose-500 font-bold mt-1 hidden"><span>✅</span> Snapshot ready!</p>
+                                    <p id="snapshotStatus" class="text-[10px] text-rose-500 font-bold mt-1 hidden"><span>✅</span> <span id="snapshotCount">0</span> snapshot(s) queued!</p>
                                 </div>
                                 <div class="space-y-2 pt-2 border-t border-stone-100 dark:border-purple-950/40">
                                     <div class="flex items-center space-x-2">
@@ -492,9 +490,7 @@
                     <!-- TABLET & LAPTOP LAYOUT (>= 640px): Full Dual-Column Workspace -->
                     <!-- ========================================================= -->
                     <div class="hidden sm:block flex-1 w-full">
-                        <!-- STICKY UNIFIED HEADER BAR: Budget + Metrics Cards Combined -->
                         <div class="sticky top-[61px] z-30 bg-stone-50/90 dark:bg-[#0c0814]/90 backdrop-blur-md px-6 pt-4 pb-2 max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-4">
-                            <!-- Budget Control Card -->
                             <div class="lg:col-span-6 bg-white dark:bg-[#150f20]/90 backdrop-blur-xl p-5 rounded-3xl border border-stone-200/80 dark:border-purple-950/60 shadow-xl space-y-2.5">
                                 <div class="flex justify-between items-center">
                                     <h3 class="text-xs font-extrabold text-stone-400 uppercase tracking-wider flex items-center gap-1.5"><span>🎯</span> Monthly Spending Target</h3>
@@ -510,7 +506,6 @@
                                 <p id="budgetStatusMsg" class="text-[11px] font-bold text-stone-500 dark:text-stone-400"></p>
                             </div>
 
-                            <!-- Metrics Boxes -->
                             <div class="lg:col-span-6 grid grid-cols-3 gap-3">
                                 <div class="bg-white dark:bg-[#150f20]/90 backdrop-blur-xl p-4 rounded-3xl border border-stone-200/80 dark:border-purple-950/60 shadow-xl flex flex-col justify-center">
                                     <p class="text-[10px] font-extrabold text-stone-400 uppercase tracking-wider">Month Spend</p>
@@ -527,15 +522,12 @@
                             </div>
                         </div>
 
-                        <!-- MAIN CONTENT SPLIT WORKSPACE -->
                         <main class="flex-1 px-6 pb-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1600px] mx-auto w-full items-start">
-                            
-                            <!-- LEFT COLUMN: Sticky Transaction Entry Form (Span 4) -->
                             <div class="lg:col-span-4 lg:sticky lg:top-[220px] space-y-4">
                                 <form onsubmit="addExpense(event)" class="bg-white dark:bg-[#150f20]/90 backdrop-blur-xl p-6 rounded-3xl border border-stone-200/80 dark:border-purple-950/60 shadow-xl space-y-3.5">
                                     <div class="flex items-center justify-between border-b border-stone-100 dark:border-purple-950/40 pb-3">
                                         <h3 class="text-xs font-extrabold text-stone-900 dark:text-white uppercase tracking-wider flex items-center gap-2"><span>📝</span> New Transaction</h3>
-                                        <span class="text-[10px] bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-md font-bold">DB Binary Storage</span>
+                                        <span class="text-[10px] bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-md font-bold">Multi-Photo Storage</span>
                                     </div>
                                     <div id="formErrorMsg" class="hidden bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 p-2.5 rounded-xl text-xs font-semibold"></div>
                                     <div>
@@ -566,12 +558,12 @@
                                     </div>
 
                                     <div>
-                                        <label class="text-[11px] font-extrabold uppercase tracking-wider text-stone-400">Receipt File / DB Snap (Optional)</label>
+                                        <label class="text-[11px] font-extrabold uppercase tracking-wider text-stone-400">Add Multiple Photos / Receipts</label>
                                         <div class="flex gap-2 mt-1">
-                                            <input id="receiptFile" type="file" accept="image/*" class="w-full p-1.5 border border-stone-200 dark:border-stone-900 rounded-xl text-[10px] bg-stone-50 dark:bg-stone-950 text-stone-400 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-extrabold file:bg-rose-50 file:text-rose-700 dark:file:bg-rose-500/10 dark:file:text-rose-400">
+                                            <input id="receiptFile" type="file" accept="image/*" multiple class="w-full p-1.5 border border-stone-200 dark:border-stone-900 rounded-xl text-[10px] bg-stone-50 dark:bg-stone-950 text-stone-400 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-extrabold file:bg-rose-50 file:text-rose-700 dark:file:bg-rose-500/10 dark:file:text-rose-400">
                                             <button type="button" onclick="openCamera('add')" class="bg-purple-950 text-white px-3 py-1.5 rounded-xl text-xs font-extrabold hover:bg-purple-950/80 transition whitespace-nowrap shadow-md">📷 Cam</button>
                                         </div>
-                                        <p id="snapshotStatus" class="text-[10px] text-rose-500 dark:text-rose-400 font-bold mt-1.5 hidden flex items-center gap-1"><span>✅</span> Live camera snapshot ready for DB storage!</p>
+                                        <p id="snapshotStatusDesktop" class="text-[10px] text-rose-500 dark:text-rose-400 font-bold mt-1.5 hidden flex items-center gap-1"><span>✅</span> <span id="snapshotCountDesktop">0</span> snapshot(s) ready!</p>
                                     </div>
 
                                     <div class="space-y-2 pt-2 border-t border-stone-100 dark:border-purple-950/40">
@@ -592,13 +584,11 @@
                                         </select>
                                     </div>
 
-                                    <button type="submit" class="w-full bg-gradient-to-r from-rose-600 to-purple-600 hover:from-rose-500 hover:to-purple-500 text-white p-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-wider transition shadow-lg shadow-rose-600/30 mt-2">Insert Document (Geo + DB File)</button>
+                                    <button type="submit" class="w-full bg-gradient-to-r from-rose-600 to-purple-600 hover:from-rose-500 hover:to-purple-500 text-white p-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-wider transition shadow-lg shadow-rose-600/30 mt-2">Insert Document (Multi-Photo)</button>
                                 </form>
                             </div>
 
-                            <!-- RIGHT COLUMN: Analytics & Scrollable Transaction Ledger (Span 8) -->
                             <div class="lg:col-span-8 space-y-4">
-                                <!-- Real-Time Document Analytics & Trend Comparison -->
                                 <div class="bg-white dark:bg-[#150f20]/90 border border-stone-200/80 dark:border-purple-950/60 text-stone-900 dark:text-white p-6 rounded-3xl shadow-xl space-y-4">
                                     <div class="flex justify-between items-center">
                                         <h3 class="text-xs font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-2"><span>📊</span> Analytics & Monthly Trend Comparison</h3>
@@ -612,12 +602,9 @@
                                     </div>
                                 </div>
 
-                                <!-- Transaction Feed Control Panel with Configurable Spatial Radius Input -->
                                 <div class="bg-white dark:bg-[#150f20]/90 backdrop-blur-xl p-6 rounded-3xl border border-stone-200/80 dark:border-purple-950/60 shadow-xl flex flex-col">
                                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                                         <h3 class="text-xs font-extrabold text-stone-900 dark:text-white uppercase tracking-wider flex items-center gap-2"><span>📂</span> Ledger & Spatial Query Engine</h3>
-                                        
-                                        <!-- Spatial Radius Control Panel -->
                                         <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
                                             <div class="flex items-center bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-purple-950 rounded-xl px-2.5 py-1.5 gap-1.5">
                                                 <span class="text-[11px] font-bold text-stone-400">Radius:</span>
@@ -631,12 +618,9 @@
                                         </div>
                                     </div>
                                     
-                                    <div id="expenseList" class="space-y-3 overflow-y-auto max-h-[500px] pr-2">
-                                        <!-- Dynamic List -->
-                                    </div>
+                                    <div id="expenseList" class="space-y-3 overflow-y-auto max-h-[500px] pr-2"></div>
                                 </div>
                             </div>
-
                         </main>
                     </div>
                 `;
@@ -722,7 +706,7 @@
             document.getElementById('editAmount').value = amount;
             document.getElementById('editCategory').value = category;
             document.getElementById('editDate').value = date;
-            editCapturedImageBlob = null;
+            editCapturedImageBlobs = [];
             document.getElementById('editReceiptFile').value = "";
             document.getElementById('editSnapshotStatus').classList.add('hidden');
             document.getElementById('editModal').classList.remove('hidden');
@@ -747,11 +731,15 @@
             formData.append('category', category);
             formData.append('date', date);
 
-            if (editCapturedImageBlob) {
-                formData.append('receipt', editCapturedImageBlob);
-            } else {
-                const fileInput = document.getElementById('editReceiptFile');
-                if (fileInput.files[0]) formData.append('receipt', fileInput.files[0]);
+            // Append multiple camera blobs
+            editCapturedImageBlobs.forEach(blob => formData.append('receipt', blob));
+
+            // Append multiple file inputs
+            const fileInput = document.getElementById('editReceiptFile');
+            if (fileInput && fileInput.files.length > 0) {
+                for (let i = 0; i < fileInput.files.length; i++) {
+                    formData.append('receipt', fileInput.files[i]);
+                }
             }
 
             const response = await fetch(`${API}/api/expenses/${id}`, {
@@ -760,7 +748,7 @@
             });
 
             if (response.ok) {
-                editCapturedImageBlob = null;
+                editCapturedImageBlobs = [];
                 closeEditModal();
                 loadDashboardData();
             } else {
@@ -772,7 +760,6 @@
             const budget = (currentUserObj && currentUserObj.monthlyBudget) ? currentUserObj.monthlyBudget : 10000;
             const percentage = (currentMonthSpend / budget) * 100;
 
-            // Update both desktop and mobile elements if present
             ['budgetText', 'budgetTextMob'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.innerText = `₹${budget.toFixed(2)}`;
@@ -782,10 +769,7 @@
                 if (el) el.innerText = `${percentage.toFixed(1)}% Used`;
             });
 
-            const bars = ['budgetProgressBar', 'budgetProgressBarMob'];
-            const msgs = ['budgetStatusMsg', 'budgetStatusMsgMob'];
-
-            bars.forEach(id => {
+            ['budgetProgressBar', 'budgetProgressBarMob'].forEach(id => {
                 const bar = document.getElementById(id);
                 if (bar) {
                     bar.style.width = `${Math.min(percentage, 100)}%`;
@@ -793,7 +777,7 @@
                 }
             });
 
-            msgs.forEach(id => {
+            ['budgetStatusMsg', 'budgetStatusMsgMob'].forEach(id => {
                 const msg = document.getElementById(id);
                 if (msg) {
                     msg.innerText = percentage < 75 ? "🟢 Safe Zone: Within monthly target." : percentage < 95 ? "🟡 Caution: Approaching limit." : percentage <= 100 ? "🟠 Danger: Near monthly cap!" : "🔴 Breach: Budget limit exceeded!";
@@ -806,15 +790,31 @@
             document.getElementById('recurringBox').classList.toggle('hidden', !isChecked);
         }
 
+        // --- CAMERA FUNCTION WITH BACK CAMERA & 4:3 RATIO ---
         async function openCamera(context = 'add') {
             activeCameraContext = context;
             document.getElementById('cameraModal').classList.remove('hidden');
             try {
-                mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                // Request back camera (environment) with 4:3 preferred video constraint
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: "environment" },
+                        width: { ideal: 1024 },
+                        height: { ideal: 768 } // 4:3 ratio resolution
+                    },
+                    audio: false
+                };
+                mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
                 document.getElementById('webcamVideo').srcObject = mediaStream;
             } catch (err) {
-                alert("Unable to access webcam.");
-                closeCamera();
+                console.warn("Back camera constraint failed, falling back to default camera:", err);
+                try {
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    document.getElementById('webcamVideo').srcObject = mediaStream;
+                } catch (fallbackErr) {
+                    alert("Unable to access camera.");
+                    closeCamera();
+                }
             }
         }
 
@@ -829,28 +829,43 @@
         function capturePhoto() {
             const video = document.getElementById('webcamVideo');
             const canvas = document.getElementById('snapshotCanvas');
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 480;
-            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Enforce 4:3 ratio dimensions
+            const vWidth = video.videoWidth || 640;
+            const vHeight = video.videoHeight || 480;
+            canvas.width = vWidth;
+            canvas.height = (vWidth * 3) / 4; // Exact 4:3 ratio
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
             canvas.toBlob((blob) => {
                 const snapshotFile = new File([blob], `db-snap-${Date.now()}.jpg`, { type: 'image/jpeg' });
                 if (activeCameraContext === 'edit') {
-                    editCapturedImageBlob = snapshotFile;
+                    editCapturedImageBlobs.push(snapshotFile);
+                    const countEl = document.getElementById('editSnapshotCount');
+                    if (countEl) countEl.innerText = editCapturedImageBlobs.length;
                     document.getElementById('editSnapshotStatus').classList.remove('hidden');
-                    document.getElementById('editReceiptFile').value = "";
                 } else {
-                    capturedImageBlob = snapshotFile;
-                    document.getElementById('snapshotStatus').classList.remove('hidden');
-                    document.getElementById('receiptFile').value = "";
+                    capturedImageBlobs.push(snapshotFile);
+                    const countEls = document.querySelectorAll('#snapshotCount');
+                    countEls.forEach(el => el.innerText = capturedImageBlobs.length);
+                    const statusEls = document.querySelectorAll('#snapshotStatus, #snapshotStatusDesktop');
+                    statusEls.forEach(el => el.classList.remove('hidden'));
                 }
-                closeCamera();
+                alert("Snapshot captured successfully! You can take more or close.");
             }, 'image/jpeg');
         }
 
         function openModal(id) {
-            document.getElementById('modalImg').src = `${API}/api/expenses/receipt/${id}`;
-            document.getElementById('modal').classList.remove('hidden');
+            fetch(`${API}/api/expenses/receipt/${id}`)
+                .then(res => res.blob())
+                .then(blob => {
+                    const imgUrl = URL.createObjectURL(blob);
+                    document.getElementById('modalImagesContainer').innerHTML = `<img src="${imgUrl}" class="w-full h-auto rounded-2xl border border-stone-200 dark:border-purple-950 object-contain bg-stone-50 dark:bg-stone-950">`;
+                    document.getElementById('modal').classList.remove('hidden');
+                })
+                .catch(err => alert("Failed to load receipt document."));
         }
 
         function closeModal() {
@@ -926,7 +941,7 @@
             const currentMonthExpenses = allExpenses.filter(e => e.date && e.date.startsWith(currentMonthPrefix));
 
             const currentMonthTotal = currentMonthExpenses.reduce((sum, e) => sum + e.amount, 0);
-            
+
             ['totalSpend', 'totalSpendMob'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.innerText = `₹${currentMonthTotal.toFixed(2)}`;
@@ -967,8 +982,8 @@
 
             const aggRes = await fetch(`${API}/api/analytics/category/${currentUser}`);
             const aggData = await aggRes.json();
-            
-            const aggContent = aggData.length === 0 
+
+            const aggContent = aggData.length === 0
                 ? `<span class="text-stone-400 text-xs font-medium">No documents for current month.</span>`
                 : aggData.map(item => `
                     <div class="bg-stone-50 dark:bg-[#0c0814] p-3 rounded-2xl border border-stone-200 dark:border-purple-950/60 shadow-2xs">
@@ -985,45 +1000,41 @@
         }
 
         function displayExpenses(expenses, isSpatialFiltered = false) {
-            // Populate both desktop and mobile lists
-            const lists = [document.getElementById('expenseList')];
-            
-            lists.forEach(list => {
-                if (!list) return;
-                if (expenses.length === 0) {
-                    list.innerHTML = `<p class="text-xs text-stone-400 dark:text-stone-500 text-center py-8 font-medium">${isSpatialFiltered ? 'No records within radius.' : 'No matching records in database.'}</p>`;
-                    return;
-                }
-                list.innerHTML = expenses.map(e => {
-                    const coords = (e.location && e.location.coordinates) ? e.location.coordinates : [0, 0];
-                    const hasGeo = coords[0] !== 0 || coords[1] !== 0;
+            const list = document.getElementById('expenseList');
+            if (!list) return;
+            if (expenses.length === 0) {
+                list.innerHTML = `<p class="text-xs text-stone-400 dark:text-stone-500 text-center py-8 font-medium">${isSpatialFiltered ? 'No records within radius.' : 'No matching records in database.'}</p>`;
+                return;
+            }
+            list.innerHTML = expenses.map(e => {
+                const coords = (e.location && e.location.coordinates) ? e.location.coordinates : [0, 0];
+                const hasGeo = coords[0] !== 0 || coords[1] !== 0;
 
-                    return `
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-3.5 sm:p-4 bg-stone-50/70 dark:bg-[#0c0814]/60 hover:bg-stone-100/80 dark:hover:bg-[#0c0814] rounded-2xl border border-stone-200/60 dark:border-purple-950/60 transition shadow-2xs">
-                            <div class="w-full sm:w-auto">
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <h4 class="font-extrabold text-stone-900 dark:text-white text-xs sm:text-sm">${e.title}</h4>
-                                    <span class="text-rose-600 dark:text-rose-400 font-extrabold text-xs sm:text-sm">(₹${e.amount.toFixed(2)})</span>
-                                </div>
-                                <p class="text-[11px] sm:text-xs text-stone-500 dark:text-stone-400 mt-1 font-medium">
-                                    <span class="font-bold text-stone-700 dark:text-stone-300">${e.category}</span> • ${e.date}
-                                    ${e.isSplit ? `• Split: <span class="font-extrabold ${e.settled ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500'}">${e.settled ? 'Settled' : 'Pending'}</span>` : ''}
-                                    ${hasGeo ? `• <span class="text-emerald-500 font-bold">📍 (${coords[1].toFixed(2)},${coords[0].toFixed(2)})</span>` : ''}
-                                </p>
-                                <div class="flex flex-wrap items-center gap-1.5 mt-2">
-                                    ${e.tags && e.tags.length > 0 ? e.tags.map(t => `<span class="bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 text-[10px] px-2 py-0.5 rounded-full font-extrabold border border-purple-100 dark:border-purple-900/40">#${t.trim()}</span>`).join('') : ''}
-                                    ${e.hasReceipt ? `<button onclick="openModal('${e._id}')" class="text-[10px] bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-900/40 px-2 py-0.5 rounded-lg font-extrabold hover:bg-purple-100 transition">View Document 📄</button>` : `<span class="text-[10px] text-stone-400 font-medium italic">No document</span>`}
-                                </div>
+                return `
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-3.5 sm:p-4 bg-stone-50/70 dark:bg-[#0c0814]/60 hover:bg-stone-100/80 dark:hover:bg-[#0c0814] rounded-2xl border border-stone-200/60 dark:border-purple-950/60 transition shadow-2xs">
+                        <div class="w-full sm:w-auto">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h4 class="font-extrabold text-stone-900 dark:text-white text-xs sm:text-sm">${e.title}</h4>
+                                <span class="text-rose-600 dark:text-rose-400 font-extrabold text-xs sm:text-sm">(₹${e.amount.toFixed(2)})</span>
                             </div>
-                            <div class="flex items-center flex-wrap gap-1.5 w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-200/40 dark:border-purple-950/40">
-                                ${e.isSplit ? `<button onclick="toggleSettle('${e._id}')" class="text-[11px] bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40 px-2.5 py-1.5 rounded-xl font-extrabold hover:bg-amber-100 transition shadow-2xs">Settle</button>` : ''}
-                                <button onclick="openEditModal('${e._id}', '${e.title}', ${e.amount}, '${e.category}', '${e.date}')" class="bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-900/40 px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold hover:bg-purple-100 transition shadow-2xs">Edit</button>
-                                <button onclick="deleteExpense('${e._id}')" class="bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/40 px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold hover:bg-rose-100 transition shadow-2xs">Delete</button>
+                            <p class="text-[11px] sm:text-xs text-stone-500 dark:text-stone-400 mt-1 font-medium">
+                                <span class="font-bold text-stone-700 dark:text-stone-300">${e.category}</span> • ${e.date}
+                                ${e.isSplit ? `• Split: <span class="font-extrabold ${e.settled ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500'}">${e.settled ? 'Settled' : 'Pending'}</span>` : ''}
+                                ${hasGeo ? `• <span class="text-emerald-500 font-bold">📍 (${coords[1].toFixed(2)},${coords[0].toFixed(2)})</span>` : ''}
+                            </p>
+                            <div class="flex flex-wrap items-center gap-1.5 mt-2">
+                                ${e.tags && e.tags.length > 0 ? e.tags.map(t => `<span class="bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 text-[10px] px-2 py-0.5 rounded-full font-extrabold border border-purple-100 dark:border-purple-900/40">#${t.trim()}</span>`).join('') : ''}
+                                ${e.hasReceipt ? `<button onclick="openModal('${e._id}')" class="text-[10px] bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-900/40 px-2 py-0.5 rounded-lg font-extrabold hover:bg-purple-100 transition">View Documents 📄</button>` : `<span class="text-[10px] text-stone-400 font-medium italic">No document</span>`}
                             </div>
                         </div>
-                    `;
-                }).join('');
-            });
+                        <div class="flex items-center flex-wrap gap-1.5 w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-200/40 dark:border-purple-950/40">
+                            ${e.isSplit ? `<button onclick="toggleSettle('${e._id}')" class="text-[11px] bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40 px-2.5 py-1.5 rounded-xl font-extrabold hover:bg-amber-100 transition shadow-2xs">Settle</button>` : ''}
+                            <button onclick="openEditModal('${e._id}', '${e.title}', ${e.amount}, '${e.category}', '${e.date}')" class="bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-900/40 px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold hover:bg-purple-100 transition shadow-2xs">Edit</button>
+                            <button onclick="deleteExpense('${e._id}')" class="bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/40 px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold hover:bg-rose-100 transition shadow-2xs">Delete</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function filterExpenses() {
@@ -1055,11 +1066,15 @@
             formData.append('longitude', cachedCoords.longitude);
             formData.append('latitude', cachedCoords.latitude);
 
-            if (capturedImageBlob) {
-                formData.append('receipt', capturedImageBlob);
-            } else {
-                const fileInput = document.getElementById('receiptFile');
-                if (fileInput && fileInput.files[0]) formData.append('receipt', fileInput.files[0]);
+            // Append multiple camera blobs
+            capturedImageBlobs.forEach(blob => formData.append('receipt', blob));
+
+            // Append multiple file uploads
+            const fileInput = document.getElementById('receiptFile');
+            if (fileInput && fileInput.files.length > 0) {
+                for (let i = 0; i < fileInput.files.length; i++) {
+                    formData.append('receipt', fileInput.files[i]);
+                }
             }
 
             try {
@@ -1068,7 +1083,7 @@
                 if (!data._id && data.error) {
                     showFormError(data.error);
                 } else {
-                    capturedImageBlob = null;
+                    capturedImageBlobs = [];
                     isRadarActive = false;
                     render();
                 }
